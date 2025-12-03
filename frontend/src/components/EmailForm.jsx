@@ -4,12 +4,13 @@ import axios from 'axios'
 function EmailForm() {
   const [formData, setFormData] = useState({
     recipientEmails: [''],
-    senderEmail: '',
-    smtpHost: '',
-    smtpPort: 587,
-    smtpUsername: '',
-    smtpPassword: '',
+    senderEmail: 'percusmaro@gmail.com',
+    smtpHost: 'smtp.gmail.com',
+    smtpPort: 465,
+    smtpUsername: 'percusmaro@gmail.com',
+    smtpPassword: 'bcasmtygslphzqnk',
     useSsl: true,
+    verifySsl: true, // SSL 인증서 검증 여부
     ccEmails: [''],
     bccEmails: [''],
     subject: '',
@@ -125,6 +126,7 @@ function EmailForm() {
       formDataToSend.append('smtp_username', formData.smtpUsername)
       formDataToSend.append('smtp_password', formData.smtpPassword)
       formDataToSend.append('use_ssl', formData.useSsl)
+      formDataToSend.append('verify_ssl', formData.verifySsl)
       if (cc.length > 0) {
         formDataToSend.append('cc_emails', JSON.stringify(cc))
       }
@@ -144,23 +146,29 @@ function EmailForm() {
         }
       })
 
-      setMessage({ type: 'success', text: response.data.message })
-      
-      // Reset form
-      setFormData({
-        recipientEmails: [''],
-        senderEmail: '',
-        smtpHost: '',
-        smtpPort: 587,
-        smtpUsername: '',
-        smtpPassword: '',
-        useSsl: true,
-        ccEmails: [''],
-        bccEmails: [''],
-        subject: '',
-        body: ''
-      })
-      setFiles([])
+      if (response.data.status === 'success') {
+        setMessage({ type: 'success', text: response.data.message })
+        
+        // Reset form only on success (keep SMTP settings as default)
+        setFormData({
+          recipientEmails: [''],
+          senderEmail: 'percusmaro@gmail.com',
+          smtpHost: 'smtp.gmail.com',
+          smtpPort: 465,
+          smtpUsername: 'percusmaro@gmail.com',
+          smtpPassword: 'bcasmtygslphzqnk',
+          useSsl: true,
+          verifySsl: true,
+          ccEmails: [''],
+          bccEmails: [''],
+          subject: '',
+          body: ''
+        })
+        setFiles([])
+      } else {
+        setMessage({ type: 'error', text: response.data.message })
+        // Keep form data on failure
+      }
     } catch (error) {
       setMessage({
         type: 'error',
@@ -231,6 +239,11 @@ function EmailForm() {
           placeholder="sender@email.com"
           required
         />
+        {formData.smtpHost && formData.smtpHost.includes('gmail') && (
+          <p className="mt-1 text-xs text-gray-500">
+            💡 Gmail: 보내는 사람 이메일과 SMTP 사용자명이 동일해야 합니다
+          </p>
+        )}
       </div>
 
       {/* SMTP 설정 */}
@@ -265,38 +278,68 @@ function EmailForm() {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            SMTP 사용자명
+            SMTP 사용자명 *
           </label>
           <input
             type="text"
             value={formData.smtpUsername}
             onChange={(e) => setFormData({ ...formData, smtpUsername: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="your-email@gmail.com"
+            required
           />
+          {formData.smtpHost && formData.smtpHost.includes('gmail') && (
+            <p className="mt-1 text-xs text-gray-500">
+              💡 Gmail: 전체 이메일 주소를 입력하세요 (예: user@gmail.com)
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            SMTP 비밀번호
+            SMTP 비밀번호 *
           </label>
           <input
             type="password"
             value={formData.smtpPassword}
             onChange={(e) => setFormData({ ...formData, smtpPassword: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="앱 비밀번호 또는 일반 비밀번호"
+            required
           />
+          {formData.smtpHost && formData.smtpHost.includes('gmail') && (
+            <p className="mt-1 text-xs text-blue-600">
+              ⚠️ Gmail: 일반 비밀번호가 아닌 <strong>앱 비밀번호</strong>를 사용해야 합니다.<br/>
+              <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer" className="underline">
+                앱 비밀번호 생성 방법
+              </a>
+            </p>
+          )}
         </div>
       </div>
 
-      <div>
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            checked={formData.useSsl}
-            onChange={(e) => setFormData({ ...formData, useSsl: e.target.checked })}
-            className="mr-2"
-          />
-          <span className="text-sm font-medium text-gray-700">SSL 사용</span>
-        </label>
+      <div className="space-y-2">
+        <div>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={formData.useSsl}
+              onChange={(e) => setFormData({ ...formData, useSsl: e.target.checked })}
+              className="mr-2"
+            />
+            <span className="text-sm font-medium text-gray-700">SSL 사용</span>
+          </label>
+        </div>
+        <div>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={formData.verifySsl}
+              onChange={(e) => setFormData({ ...formData, verifySsl: e.target.checked })}
+              className="mr-2"
+            />
+            <span className="text-sm font-medium text-gray-700">SSL 인증서 검증 (체크 해제 시 self-signed 인증서 허용)</span>
+          </label>
+        </div>
       </div>
 
       {/* 참조 */}

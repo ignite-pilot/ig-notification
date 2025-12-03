@@ -12,7 +12,7 @@ from models import EmailSendRequest, EmailSendResponse, EmailLogResponse
 from email_service import EmailService
 from config import settings
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="IG Notification API", version="1.0.0")
@@ -29,8 +29,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    init_db()
-    logger.info("Database initialized")
+    try:
+        init_db()
+        logger.info("Database initialized")
+    except Exception as e:
+        logger.warning(f"Database initialization failed: {str(e)}. Server will continue without database.")
 
 
 @app.post("/api/v1/email/send", response_model=EmailSendResponse)
@@ -42,6 +45,7 @@ async def send_email(
     smtp_username: Optional[str] = Form(None),
     smtp_password: Optional[str] = Form(None),
     use_ssl: bool = Form(True),
+    verify_ssl: bool = Form(True),  # SSL 인증서 검증 여부
     cc_emails: Optional[str] = Form(None),  # JSON string
     bcc_emails: Optional[str] = Form(None),  # JSON string
     subject: str = Form(...),
@@ -117,7 +121,8 @@ async def send_email(
             body=body,
             cc_emails=cc_list,
             bcc_emails=bcc_list,
-            attachments=attachments if attachments else None
+            attachments=attachments if attachments else None,
+            verify_ssl=verify_ssl
         )
         
         # Update log
@@ -139,6 +144,9 @@ async def send_email(
         
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="잘못된 JSON 형식입니다.")
+    except HTTPException:
+        # HTTPException은 그대로 전파
+        raise
     except Exception as e:
         logger.error(f"이메일 발송 중 오류: {str(e)}")
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")

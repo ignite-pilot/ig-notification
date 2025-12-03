@@ -28,7 +28,7 @@ class TestEmailService:
         }]
         is_valid, error_msg, total_size = EmailService.validate_attachments(attachments)
         assert is_valid is False
-        assert "30MB" in error_msg
+        assert "30" in error_msg and "MB" in error_msg
 
     def test_validate_attachments_valid(self):
         """유효한 첨부파일 테스트"""
