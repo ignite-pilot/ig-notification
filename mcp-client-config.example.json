@@ -1,0 +1,81 @@
+{
+  "mcpServer": {
+    "name": "ig-notification",
+    "url": "http://localhost:8102/mcp",
+    "protocol": "http",
+    "description": "IG Notification MCP Server for email sending and log management"
+  },
+  "methods": {
+    "send_email": {
+      "description": "Send email via SMTP",
+      "params": {
+        "recipient_emails": ["string"],
+        "sender_email": "string",
+        "smtp_host": "string",
+        "smtp_port": "number",
+        "smtp_username": "string (optional)",
+        "smtp_password": "string (optional)",
+        "use_ssl": "boolean (default: true)",
+        "cc_emails": ["string (optional)"],
+        "bcc_emails": ["string (optional)"],
+        "subject": "string",
+        "body": "string",
+        "attachments": [
+          {
+            "filename": "string",
+            "content_base64": "string"
+          }
+        ]
+      }
+    },
+    "get_email_log": {
+      "description": "Get email log by ID",
+      "params": {
+        "log_id": "string (UUID)"
+      }
+    },
+    "list_email_logs": {
+      "description": "List email logs",
+      "params": {
+        "skip": "number (optional, default: 0)",
+        "limit": "number (optional, default: 100)"
+      }
+    }
+  },
+  "examples": {
+    "send_email": {
+      "request": {
+        "method": "send_email",
+        "params": {
+          "recipient_emails": ["recipient@example.com"],
+          "sender_email": "sender@example.com",
+          "smtp_host": "smtp.gmail.com",
+          "smtp_port": 587,
+          "smtp_username": "your-email@gmail.com",
+          "smtp_password": "your-app-password",
+          "use_ssl": true,
+          "subject": "Test Email",
+          "body": "This is a test email"
+        }
+      }
+    },
+    "get_email_log": {
+      "request": {
+        "method": "get_email_log",
+        "params": {
+          "log_id": "027fc027-2da1-44d6-ac75-b5e496eafe47"
+        }
+      }
+    },
+    "list_email_logs": {
+      "request": {
+        "method": "list_email_logs",
+        "params": {
+          "skip": 0,
+          "limit": 10
+        }
+      }
+    }
+  }
+}
+

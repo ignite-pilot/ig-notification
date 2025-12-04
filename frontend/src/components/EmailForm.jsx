@@ -4,11 +4,11 @@ import axios from 'axios'
 function EmailForm() {
   const [formData, setFormData] = useState({
     recipientEmails: [''],
-    senderEmail: 'percusmaro@gmail.com',
+    senderEmail: '',
     smtpHost: 'smtp.gmail.com',
     smtpPort: 465,
-    smtpUsername: 'percusmaro@gmail.com',
-    smtpPassword: 'bcasmtygslphzqnk',
+    smtpUsername: '',
+    smtpPassword: '', // 하드코딩된 비밀번호 제거
     useSsl: true,
     verifySsl: true, // SSL 인증서 검증 여부
     ccEmails: [''],
@@ -152,11 +152,11 @@ function EmailForm() {
         // Reset form only on success (keep SMTP settings as default)
         setFormData({
           recipientEmails: [''],
-          senderEmail: 'percusmaro@gmail.com',
+          senderEmail: '',
           smtpHost: 'smtp.gmail.com',
           smtpPort: 465,
-          smtpUsername: 'percusmaro@gmail.com',
-          smtpPassword: 'bcasmtygslphzqnk',
+          smtpUsername: '',
+          smtpPassword: '', // 하드코딩된 비밀번호 제거
           useSsl: true,
           verifySsl: true,
           ccEmails: [''],

@@ -1,43 +1,74 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import uuid
 from datetime import datetime
 import base64
 import logging
+import os
 
 from database import get_db, init_db, EmailLog
 from models import EmailSendRequest, EmailSendResponse, EmailLogResponse
 from email_service import EmailService
 from config import settings
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# 로깅 레벨을 환경 변수에서 읽기
+log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
+logging.basicConfig(level=log_level, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="IG Notification API", version="1.0.0")
+from contextlib import asynccontextmanager
 
-# CORS 설정
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # 프로덕션에서는 특정 도메인만 허용
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     try:
         init_db()
         logger.info("Database initialized")
     except Exception as e:
         logger.warning(f"Database initialization failed: {str(e)}. Server will continue without database.")
+    yield
+    # Shutdown (필요한 경우 정리 작업)
+
+app = FastAPI(title="IG Notification API", version="1.0.0", lifespan=lifespan)
+
+# Rate Limiting 설정
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS 설정 - 환경 변수에서 허용 도메인 읽기
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins_list,  # 특정 도메인만 허용
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+# API 키 인증 (선택적 - API_KEY가 설정된 경우에만 활성화)
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+async def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    """API 키 검증 (API_KEY가 설정된 경우에만 활성화)"""
+    if settings.api_key:
+        if not x_api_key or x_api_key != settings.api_key:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or missing API key. Please provide a valid X-API-Key header."
+            )
+    return x_api_key
 
 
-@app.post("/api/v1/email/send", response_model=EmailSendResponse)
+@app.post("/api/v1/email/send", response_model=EmailSendResponse, dependencies=[Depends(verify_api_key)])
+@limiter.limit("10/minute")  # Rate limiting: 분당 10회 제한
 async def send_email(
+    request: Request,
     recipient_emails: str = Form(...),  # JSON string
     sender_email: str = Form(...),
     smtp_host: str = Form(...),
@@ -57,6 +88,7 @@ async def send_email(
     이메일 발송 API
     """
     import json
+    from email_validator import validate_email, EmailNotValidError
     
     try:
         # Parse JSON strings
@@ -70,14 +102,66 @@ async def send_email(
         if len(recipient_list) == 0:
             raise HTTPException(status_code=400, detail="받는 사람 이메일을 최소 1개 이상 입력해주세요.")
         
-        # Process attachments
+        # 이메일 형식 검증
+        def validate_email_list(emails: List[str], field_name: str = "이메일"):
+            for email in emails:
+                try:
+                    validate_email(email)
+                except EmailNotValidError as e:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"유효하지 않은 {field_name} 주소: {email}"
+                    )
+        
+        validate_email_list(recipient_list, "받는 사람")
+        validate_email_list([sender_email], "보내는 사람")
+        if cc_list:
+            validate_email_list(cc_list, "참조")
+        if bcc_list:
+            validate_email_list(bcc_list, "숨은 참조")
+        
+        # Process attachments with security validation
         attachments = []
         total_size = 0
+        ALLOWED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.gif', '.xls', '.xlsx', '.csv'}
+        ALLOWED_MIME_TYPES = {
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/plain',
+            'text/csv',
+            'image/jpeg',
+            'image/png',
+            'image/gif'
+        }
+        
         if files:
             if len(files) > 10:
                 raise HTTPException(status_code=400, detail="첨부파일은 최대 10개까지 가능합니다.")
             
             for file in files:
+                # 파일명 검증
+                if not file.filename:
+                    raise HTTPException(status_code=400, detail="파일명이 없습니다.")
+                
+                # 확장자 검증
+                file_ext = '.' + file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+                if file_ext not in ALLOWED_EXTENSIONS:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"허용되지 않은 파일 형식입니다. 허용 형식: {', '.join(ALLOWED_EXTENSIONS)}"
+                    )
+                
+                # MIME 타입 검증
+                content_type = file.content_type
+                if content_type and content_type not in ALLOWED_MIME_TYPES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"허용되지 않은 파일 타입입니다."
+                    )
+                
                 content = await file.read()
                 total_size += len(content)
                 
@@ -147,9 +231,16 @@ async def send_email(
     except HTTPException:
         # HTTPException은 그대로 전파
         raise
+    except HTTPException:
+        # HTTPException은 그대로 전파
+        raise
     except Exception as e:
         logger.error(f"이메일 발송 중 오류: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+        # 프로덕션에서는 상세 에러를 숨김
+        raise HTTPException(
+            status_code=500,
+            detail="서버 오류가 발생했습니다. 관리자에게 문의하세요."
+        )
 
 
 @app.get("/api/v1/email/logs", response_model=List[EmailLogResponse])

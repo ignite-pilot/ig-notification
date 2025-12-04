@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
@@ -53,6 +53,5 @@ class EmailLogResponse(BaseModel):
     created_at: datetime
     sent_at: Optional[datetime]
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 

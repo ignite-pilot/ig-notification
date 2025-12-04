@@ -266,14 +266,18 @@ async def main():
                 }
             }, status=400)
     
+    from config import settings
+    
     app = web.Application()
+    # CORS 설정 - 환경 변수에서 허용 도메인 읽기
+    allowed_origins = settings.allowed_origins_list
     cors = aiohttp_cors.setup(app, defaults={
-        "*": aiohttp_cors.ResourceOptions(
+        origin: aiohttp_cors.ResourceOptions(
             allow_credentials=True,
             expose_headers="*",
             allow_headers="*",
             allow_methods="*"
-        )
+        ) for origin in allowed_origins
     })
     
     app.router.add_post("/mcp", handle_mcp_request)
