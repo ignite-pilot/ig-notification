@@ -15,7 +15,7 @@ import os
 from database import get_db, init_db, EmailLog
 from models import EmailSendRequest, EmailSendResponse, EmailLogResponse
 from email_service import EmailService
-from config import settings
+from settings import settings
 
 # 로깅 레벨을 환경 변수에서 읽기
 log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
@@ -277,5 +277,7 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=settings.api_port)
+    # Phase별 host 사용 (local은 0.0.0.0, alpha는 설정된 host)
+    host = "0.0.0.0" if settings.env_name == "local" else settings.host
+    uvicorn.run(app, host=host, port=settings.api_port)
 

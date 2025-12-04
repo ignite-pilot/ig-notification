@@ -266,7 +266,7 @@ async def main():
                 }
             }, status=400)
     
-    from config import settings
+    from settings import settings
     
     app = web.Application()
     # CORS 설정 - 환경 변수에서 허용 도메인 읽기
@@ -286,13 +286,15 @@ async def main():
     for route in list(app.router.routes()):
         cors.add(route)
     
-    from config import settings
+    from settings import settings
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", settings.mcp_port)
+    # Phase별 host 사용 (local은 0.0.0.0, alpha는 설정된 host)
+    host = "0.0.0.0" if settings.env_name == "local" else settings.host
+    site = web.TCPSite(runner, host, settings.mcp_port)
     await site.start()
     
-    print(f"MCP Server running on port {settings.mcp_port}")
+    print(f"MCP Server running on {host}:{settings.mcp_port} (Phase: {settings.env_name})")
     
     # Keep running
     try:
