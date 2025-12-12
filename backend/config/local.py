@@ -39,7 +39,7 @@ def load_database_url_from_aws() -> str:
         db_port = secret.get('DB_PORT', '5432')
         db_user = secret.get('DB_USER', 'postgres')
         db_password = secret.get('DB_PASSWORD', '')
-        db_name = secret.get('DB_NAME', 'postgres')  # 기본값은 postgres
+        db_name = secret.get('DB_NAME', 'ig-notification')  # 프로젝트 이름으로 기본값 설정
         
         # PostgreSQL 연결 문자열 구성
         database_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
