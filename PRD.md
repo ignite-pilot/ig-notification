@@ -46,17 +46,11 @@
 - Database 
 	- Local
 		- 사용 DB : postgres
-		- URL : aidev-pgvector-dev.crkgaskg6o61.ap-northeast-2.rds.amazonaws.com
-		- Port : 5432
-		- User : postgres
-		- Password : vmcMrs75!KZHk2johkRR:]wL
+		- DB 정보 : AWS Secret Manager "prod/ignite-pilot/postgresInfo2"에서 참고
 		- DB name : ig-notification
 	- Alpha
 		- 사용 DB : postgres
-		- URL : aidev-pgvector-dev.crkgaskg6o61.ap-northeast-2.rds.amazonaws.com
-		- Port : 5432
-		- User : postgres
-		- Password : vmcMrs75!KZHk2johkRR:]wL
+		- DB 정보 : AWS Secret Manager "prod/ignite-pilot/postgresInfo2"에서 참고
 		- DB name : ig-notification-alpha
 
 - 서비스 URL

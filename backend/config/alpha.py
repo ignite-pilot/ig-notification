@@ -66,9 +66,9 @@ class AlphaConfig:
     # CORS 설정 - 설정 파일에서 읽어오기
     ALLOWED_ORIGINS: list = load_cors_origins("alpha")
     
-    # Database - AWS Secret Manager에서 가져오기
-    # 환경 변수로 DATABASE_URL이 설정되어 있으면 우선 사용, 없으면 AWS Secret Manager에서 가져옴
-    DATABASE_URL: str = os.getenv("DATABASE_URL", load_database_url_from_aws())
+    # Database - AWS Secret Manager에서만 가져오기 (보안: 파일에 저장하지 않음)
+    # 환경 변수 DATABASE_URL은 사용하지 않음 (보안상 파일에 저장하지 않음)
+    DATABASE_URL: str = load_database_url_from_aws()
     
     # API Security (Alpha는 API 키 필수)
     API_KEY: Optional[str] = os.getenv("API_KEY", None)
