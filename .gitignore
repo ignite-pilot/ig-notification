@@ -15,6 +15,9 @@ build/
 # Environment
 .env
 .env.local
+# Docker 배포 환경 파일 (민감 정보 포함 - Git에 커밋하지 않음)
+config.local.env
+config.alpha.env
 
 # Node
 node_modules/

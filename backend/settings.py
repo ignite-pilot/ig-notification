@@ -3,7 +3,6 @@ Phase별 설정을 사용하는 Settings 클래스
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
-import os
 
 # Phase별 설정 import (순환 import 방지를 위해 여기서 import)
 from config import phase_config

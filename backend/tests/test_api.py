@@ -1,7 +1,5 @@
-import pytest
 from fastapi.testclient import TestClient
 from main import app
-from database import SessionLocal, EmailLog
 import json
 
 client = TestClient(app)

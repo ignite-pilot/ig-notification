@@ -1,5 +1,8 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.security import APIKeyHeader
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -10,10 +13,11 @@ import uuid
 from datetime import datetime
 import base64
 import logging
-import os
+import hmac
+from pathlib import Path
 
 from database import get_db, init_db, EmailLog
-from models import EmailSendRequest, EmailSendResponse, EmailLogResponse
+from models import EmailSendResponse, EmailLogResponse
 from email_service import EmailService
 from settings import settings
 
@@ -21,8 +25,6 @@ from settings import settings
 log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
 logging.basicConfig(level=log_level, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,32 +37,78 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown (필요한 경우 정리 작업)
 
-app = FastAPI(title="IG Notification API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="IG Notification API", 
+    version="1.0.0", 
+    lifespan=lifespan,
+    # 보안 헤더 설정
+    docs_url="/api/docs" if settings.env_name == "local" else None,  # 프로덕션에서는 docs 비활성화
+    redoc_url="/api/redoc" if settings.env_name == "local" else None,  # 프로덕션에서는 redoc 비활성화
+    openapi_url="/api/openapi.json" if settings.env_name == "local" else None,  # 프로덕션에서는 openapi 비활성화
+)
 
 # Rate Limiting 설정
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS 설정 - 환경 변수에서 허용 도메인 읽기
+# CORS 설정 - 보안을 위해 제한적으로 설정
+# 통합 서버이므로 같은 origin에서 서빙되지만, 외부 API 호출을 위한 CORS 설정
+cors_origins = settings.allowed_origins_list if settings.allowed_origins_list else []
+# Local 환경에서는 localhost 허용
+if settings.env_name == "local":
+    if "http://localhost:8101" not in cors_origins:
+        cors_origins.append("http://localhost:8101")
+    if "http://127.0.0.1:8101" not in cors_origins:
+        cors_origins.append("http://127.0.0.1:8101")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,  # 특정 도메인만 허용
+    allow_origins=cors_origins,  # 명시적으로 허용된 origin만
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key", "Accept"],  # 필요한 헤더만 명시
+    expose_headers=["Content-Type", "Content-Length"],
+    max_age=3600,  # Preflight 요청 캐시 시간
 )
+
+# Frontend 정적 파일 서빙 설정
+# 프로젝트 루트 기준으로 frontend/dist 폴더를 찾음
+BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
+
+# 정적 파일이 존재하는 경우에만 마운트
+# 주의: 이 핸들러는 API 라우트 이후에 등록되어야 함 (라우트 우선순위)
+if FRONTEND_DIST_DIR.exists() and (FRONTEND_DIST_DIR / "index.html").exists():
+    # 정적 파일 (JS, CSS 등) 서빙
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST_DIR / "assets")), name="assets")
 
 # API 키 인증 (선택적 - API_KEY가 설정된 경우에만 활성화)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
-async def verify_api_key(x_api_key: Optional[str] = Header(None)):
-    """API 키 검증 (API_KEY가 설정된 경우에만 활성화)"""
+async def verify_api_key(x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
+    """
+    API 키 검증 (API_KEY가 설정된 경우에만 활성화)
+    보안: Constant-time 비교를 사용하여 timing attack 방지
+    """
     if settings.api_key:
-        if not x_api_key or x_api_key != settings.api_key:
+        if not x_api_key:
             raise HTTPException(
                 status_code=401,
-                detail="Invalid or missing API key. Please provide a valid X-API-Key header."
+                detail="API key is required. Please provide a valid X-API-Key header."
+            )
+        # Constant-time 비교를 위한 구현 (timing attack 방지)
+        # hmac.compare_digest는 constant-time 비교를 보장
+        try:
+            if not hmac.compare_digest(x_api_key.encode('utf-8'), settings.api_key.encode('utf-8')):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid API key. Please provide a valid X-API-Key header."
+                )
+        except (UnicodeEncodeError, AttributeError):
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid API key format."
             )
     return x_api_key
 
@@ -107,7 +155,7 @@ async def send_email(
             for email in emails:
                 try:
                     validate_email(email)
-                except EmailNotValidError as e:
+                except EmailNotValidError:
                     raise HTTPException(
                         status_code=400,
                         detail=f"유효하지 않은 {field_name} 주소: {email}"
@@ -159,7 +207,7 @@ async def send_email(
                 if content_type and content_type not in ALLOWED_MIME_TYPES:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"허용되지 않은 파일 타입입니다."
+                        detail="허용되지 않은 파일 타입입니다."
                     )
                 
                 content = await file.read()
@@ -231,9 +279,6 @@ async def send_email(
     except HTTPException:
         # HTTPException은 그대로 전파
         raise
-    except HTTPException:
-        # HTTPException은 그대로 전파
-        raise
     except Exception as e:
         logger.error(f"이메일 발송 중 오류: {str(e)}")
         # 프로덕션에서는 상세 에러를 숨김
@@ -270,9 +315,104 @@ async def get_email_log(
     return log
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
-    return {"status": "ok"}
+    """Health Check API - CommonWebDevGuide.md에 따라 /api/health 경로 사용"""
+    return {"status": "ok", "service": "ig-notification"}
+
+
+# Frontend가 없을 때 루트 경로에 대한 기본 응답
+@app.get("/")
+async def root():
+    """루트 경로 - Frontend가 있으면 SPA로 리다이렉트, 없으면 API 정보 표시"""
+    if FRONTEND_DIST_DIR.exists() and (FRONTEND_DIST_DIR / "index.html").exists():
+        index_file = FRONTEND_DIST_DIR / "index.html"
+        return FileResponse(
+            str(index_file),
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    else:
+        # Frontend가 없을 때 API 정보 표시
+        from fastapi.responses import HTMLResponse
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>IG Notification API</title>
+            <style>
+                body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+                h1 { color: #333; }
+                .endpoint { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+                .method { color: #007bff; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <h1>IG Notification API</h1>
+            <p>서버가 정상적으로 실행 중입니다.</p>
+            <h2>사용 가능한 API 엔드포인트:</h2>
+            <div class="endpoint">
+                <span class="method">GET</span> <a href="/api/health">/api/health</a> - Health Check
+            </div>
+            <div class="endpoint">
+                <span class="method">POST</span> /api/v1/email/send - 이메일 발송
+            </div>
+            <div class="endpoint">
+                <span class="method">GET</span> <a href="/api/v1/email/logs">/api/v1/email/logs</a> - 이메일 로그 조회
+            </div>
+            <div class="endpoint">
+                <span class="method">GET</span> /api/v1/email/logs/{log_id} - 로그 상세 조회
+            </div>
+            <p style="margin-top: 30px;">
+                <a href="/api/docs">API 문서 보기</a> (로컬 환경)
+            </p>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content)
+
+
+# Frontend SPA 라우팅을 위한 fallback 핸들러
+# 모든 API 라우트 이후에 등록되어야 함 (라우트 우선순위)
+if FRONTEND_DIST_DIR.exists() and (FRONTEND_DIST_DIR / "index.html").exists():
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str, request: Request):
+        """
+        Frontend SPA 라우팅을 위한 fallback 핸들러
+        API 경로가 아닌 모든 요청을 index.html로 리다이렉트
+        """
+        # API 경로는 제외 (이미 위에서 처리됨)
+        if full_path.startswith("api/") or full_path.startswith("mcp") or full_path.startswith("assets"):
+            raise HTTPException(status_code=404, detail="Not found")
+        
+        # 정적 파일 요청 처리 (favicon, robots.txt 등)
+        static_file = FRONTEND_DIST_DIR / full_path
+        # 보안: 경로 traversal 공격 방지 (상위 디렉토리 접근 차단)
+        try:
+            static_file.resolve().relative_to(FRONTEND_DIST_DIR.resolve())
+        except ValueError:
+            # 경로가 FRONTEND_DIST_DIR 밖에 있으면 차단
+            raise HTTPException(status_code=403, detail="Forbidden")
+        
+        if static_file.exists() and static_file.is_file():
+            return FileResponse(str(static_file))
+        
+        # 그 외 모든 요청은 index.html로 (SPA 라우팅)
+        index_file = FRONTEND_DIST_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(
+                str(index_file),
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0"
+                }
+            )
+        
+        raise HTTPException(status_code=404, detail="Not found")
 
 
 if __name__ == "__main__":

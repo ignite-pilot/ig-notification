@@ -2,7 +2,6 @@
 Phase별 설정 모듈
 """
 import os
-from typing import Optional
 
 # Phase 선택 (환경 변수 또는 기본값: local)
 PHASE = os.getenv("PHASE", "local").lower()

@@ -1,0 +1,11 @@
+{
+  "local": [
+    "http://localhost:8100",
+    "http://127.0.0.1:8100"
+  ],
+  "alpha": [
+    "https://alpha.ig-notification.ig-pilot.com",
+    "http://alpha.ig-notification.ig-pilot.com"
+  ]
+}
+

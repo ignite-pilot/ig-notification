@@ -35,7 +35,8 @@ PHASE=local  # 또는 alpha
 - **API Port**: `8101` (기본값)
 - **MCP Port**: `8102` (기본값)
 - **Frontend Port**: `8100` (기본값)
-- **CORS**: `http://localhost:8100`, `http://127.0.0.1:8100`
+- **CORS**: `backend/config/cors_allowed_origins.json` 파일에서 관리
+  - 기본값: `http://localhost:8100`, `http://127.0.0.1:8100`
 - **Log Level**: `DEBUG` (기본값)
 - **API Key**: 선택사항
 
@@ -45,9 +46,40 @@ PHASE=local  # 또는 alpha
 - **API Port**: `8101` (기본값)
 - **MCP Port**: `8102` (기본값)
 - **Frontend Port**: `8100` (기본값)
-- **CORS**: `https://alpha.ig-notification.ig-pilot.com`
+- **CORS**: `backend/config/cors_allowed_origins.json` 파일에서 관리
+  - 기본값: `https://alpha.ig-notification.ig-pilot.com`
 - **Log Level**: `INFO` (기본값)
 - **API Key**: 필수 권장
+
+## CORS 설정 파일
+
+CORS 허용 도메인은 `backend/config/cors_allowed_origins.json` 파일에서 관리합니다.
+
+**파일 위치**: `backend/config/cors_allowed_origins.json`
+
+**파일 형식**:
+```json
+{
+  "local": [
+    "http://localhost:8100",
+    "http://127.0.0.1:8100"
+  ],
+  "alpha": [
+    "https://alpha.ig-notification.ig-pilot.com",
+    "http://alpha.ig-notification.ig-pilot.com"
+  ]
+}
+```
+
+**사용 방법**:
+1. `backend/config/cors_allowed_origins.json` 파일을 열어서 수정
+2. 해당 Phase의 배열에 허용할 도메인 추가/제거
+3. 서버 재시작 (설정 파일 변경 시 자동 반영)
+
+**주의사항**:
+- 설정 파일이 없거나 오류가 발생하면 기본값이 사용됩니다
+- Phase별로 다른 도메인을 설정할 수 있습니다
+- 설정 파일은 Git에 커밋됩니다 (보안상 민감한 정보는 포함하지 마세요)
 
 ## 실행 방법
 

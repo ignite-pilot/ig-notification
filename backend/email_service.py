@@ -1,15 +1,12 @@
 import aiosmtplib
-from email.message import EmailMessage
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import base64
-import io
 import ssl
 import certifi
 from typing import List, Optional, Tuple
-from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -104,7 +101,6 @@ class EmailService:
                         # 
                         # For maximum compatibility, we also add an ASCII fallback
                         # Some email clients (especially older ones) may not support filename*
-                        import urllib.parse
                         try:
                             # Check if filename contains non-ASCII characters
                             filename.encode('ascii')

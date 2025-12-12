@@ -1,4 +1,3 @@
-import pytest
 import base64
 from email_service import EmailService
 

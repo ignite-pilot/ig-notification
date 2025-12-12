@@ -2,8 +2,7 @@
 MCP Server for IG Notification System
 """
 import asyncio
-import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from email_service import EmailService
 from database import SessionLocal, EmailLog
 from datetime import datetime

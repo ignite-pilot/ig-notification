@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Integer, BigInteger, DateTime, Text, ARRAY
+from sqlalchemy import create_engine, Column, String, Integer, BigInteger, DateTime, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.dialects.postgresql import UUID, JSON
 import uuid
