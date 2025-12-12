@@ -5,6 +5,8 @@ from typing import Optional
 import os
 import json
 from pathlib import Path
+import boto3
+from botocore.exceptions import ClientError
 
 
 def load_cors_origins(phase: str) -> list:
@@ -26,6 +28,30 @@ def load_cors_origins(phase: str) -> list:
         return [] if phase == "alpha" else ["http://localhost:8100"]
 
 
+def load_database_url_from_aws() -> str:
+    """AWS Secret Manager에서 데이터베이스 정보를 가져와서 DATABASE_URL 구성"""
+    try:
+        secrets_client = boto3.client('secretsmanager', region_name='ap-northeast-2')
+        response = secrets_client.get_secret_value(SecretId='prod/ignite-pilot/postgresInfo2')
+        secret = json.loads(response['SecretString'])
+        
+        db_host = secret.get('DB_HOST', '')
+        db_port = secret.get('DB_PORT', '5432')
+        db_user = secret.get('DB_USER', 'postgres')
+        db_password = secret.get('DB_PASSWORD', '')
+        db_name = secret.get('DB_NAME', 'postgres')  # 기본값은 postgres
+        
+        # PostgreSQL 연결 문자열 구성
+        database_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        return database_url
+    except ClientError as e:
+        print(f"Warning: Failed to load database config from AWS Secret Manager: {e}")
+        return ""
+    except Exception as e:
+        print(f"Warning: Failed to load database config: {e}")
+        return ""
+
+
 class AlphaConfig:
     """Alpha 프로덕션 환경 설정"""
     
@@ -40,8 +66,9 @@ class AlphaConfig:
     # CORS 설정 - 설정 파일에서 읽어오기
     ALLOWED_ORIGINS: list = load_cors_origins("alpha")
     
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    # Database - AWS Secret Manager에서 가져오기
+    # 환경 변수로 DATABASE_URL이 설정되어 있으면 우선 사용, 없으면 AWS Secret Manager에서 가져옴
+    DATABASE_URL: str = os.getenv("DATABASE_URL", load_database_url_from_aws())
     
     # API Security (Alpha는 API 키 필수)
     API_KEY: Optional[str] = os.getenv("API_KEY", None)
