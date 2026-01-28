@@ -81,7 +81,7 @@ class EmailService:
             # Add body
             msg.attach(MIMEText(body, 'html' if '<html' in body.lower() else 'plain', 'utf-8'))
             
-            # Add attachments with proper RFC 2231 encoding and ASCII fallback
+            # Add attachments (단순화된 버전)
             if attachments:
                 for att in attachments:
                     try:
@@ -93,41 +93,10 @@ class EmailService:
                         part.set_payload(content)
                         encoders.encode_base64(part)
                         
-                        # Use tuple format for filename parameter to enable RFC 2231 encoding
-                        # Format: filename=('utf-8', '', filename)
-                        # This automatically generates: filename*=utf-8''encoded_value
-                        # The email library handles the encoding internally
-                        # This is the recommended approach per RFC 2231 standard
-                        # 
-                        # For maximum compatibility, we also add an ASCII fallback
-                        # Some email clients (especially older ones) may not support filename*
-                        try:
-                            # Check if filename contains non-ASCII characters
-                            filename.encode('ascii')
-                            # ASCII only, use simple format
-                            part.add_header(
-                                'Content-Disposition',
-                                'attachment',
-                                filename=filename
-                            )
-                            part.set_param('name', filename, header='Content-Type')
-                        except UnicodeEncodeError:
-                            # Contains non-ASCII, use tuple format for RFC 2231
-                            # This generates filename*=utf-8''encoded automatically
-                            part.add_header(
-                                'Content-Disposition',
-                                'attachment',
-                                filename=('utf-8', '', filename)
-                            )
-                            
-                            # Also set Content-Type name parameter with same tuple format
-                            part.set_param('name', ('utf-8', '', filename), header='Content-Type')
+                        # 단순한 방식으로 헤더 설정 (이전 버전과 동일)
+                        part.add_header('Content-Disposition', 'attachment', filename=filename)
                         
                         msg.attach(part)
-                        
-                        # Log attachment header for debugging
-                        logger.debug(f"첨부파일 헤더 - Content-Disposition: {part.get('Content-Disposition')}")
-                        logger.debug(f"첨부파일 헤더 - Content-Type: {part.get('Content-Type')}")
                     except Exception as e:
                         logger.error(f"첨부파일 추가 실패: {str(e)}")
                         return False, f"첨부파일 처리 중 오류: {str(e)}"

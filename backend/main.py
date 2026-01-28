@@ -16,7 +16,7 @@ import logging
 import hmac
 from pathlib import Path
 
-from database import get_db, init_db, EmailLog
+from database import get_db, init_db, EmailLog, engine
 from models import EmailSendResponse, EmailLogResponse
 from email_service import EmailService
 from settings import settings
@@ -31,9 +31,15 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         init_db()
-        logger.info("Database initialized")
+        logger.info(f"Database initialized. Connection URL: {settings.database_url[:50]}...")
+        # 테이블 존재 확인
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        logger.info(f"Database tables: {tables}")
     except Exception as e:
-        logger.warning(f"Database initialization failed: {str(e)}. Server will continue without database.")
+        logger.error(f"Database initialization failed: {str(e)}. Server will continue without database.")
+        logger.exception(e)
     yield
     # Shutdown (필요한 경우 정리 작업)
 
@@ -46,6 +52,21 @@ app = FastAPI(
     redoc_url="/api/redoc" if settings.env_name == "local" else None,  # 프로덕션에서는 redoc 비활성화
     openapi_url="/api/openapi.json" if settings.env_name == "local" else None,  # 프로덕션에서는 openapi 비활성화
 )
+
+# Validation error 핸들러 추가
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """422 Validation Error를 상세하게 로깅"""
+    logger.error(f"Validation error on {request.url.path}: {exc.errors()}")
+    
+    # body는 로깅만 하고 응답에는 포함하지 않음 (UploadFile 직렬화 문제 방지)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
 
 # Rate Limiting 설정
 limiter = Limiter(key_func=get_remote_address)
@@ -123,22 +144,31 @@ async def send_email(
     smtp_port: int = Form(...),
     smtp_username: Optional[str] = Form(None),
     smtp_password: Optional[str] = Form(None),
-    use_ssl: bool = Form(True),
-    verify_ssl: bool = Form(True),  # SSL 인증서 검증 여부
+    use_ssl: str = Form("true"),  # Form 데이터는 문자열로 받아서 변환
+    verify_ssl: str = Form("true"),  # SSL 인증서 검증 여부
     cc_emails: Optional[str] = Form(None),  # JSON string
     bcc_emails: Optional[str] = Form(None),  # JSON string
     subject: str = Form(...),
     body: str = Form(...),
-    files: Optional[List[UploadFile]] = File(None),
+    files: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db)
 ):
     """
     이메일 발송 API
+    files 파라미터는 multipart/form-data에서 여러 파일을 받을 수 있습니다.
     """
     import json
     from email_validator import validate_email, EmailNotValidError
     
     try:
+        # files가 리스트가 아닌 경우 리스트로 정규화
+        if not isinstance(files, list):
+            files = [files] if files else []
+        
+        # Convert string boolean to actual boolean
+        use_ssl_bool = use_ssl.lower() in ("true", "1", "yes") if isinstance(use_ssl, str) else bool(use_ssl)
+        verify_ssl_bool = verify_ssl.lower() in ("true", "1", "yes") if isinstance(verify_ssl, str) else bool(verify_ssl)
+        
         # Parse JSON strings
         recipient_list = json.loads(recipient_emails)
         cc_list = json.loads(cc_emails) if cc_emails else None
@@ -185,7 +215,7 @@ async def send_email(
             'image/gif'
         }
         
-        if files:
+        if files and len(files) > 0:
             if len(files) > 10:
                 raise HTTPException(status_code=400, detail="첨부파일은 최대 10개까지 가능합니다.")
             
@@ -222,23 +252,32 @@ async def send_email(
                 })
         
         # Create email log
-        email_log = EmailLog(
-            sender_email=sender_email,
-            recipient_emails=recipient_list,
-            cc_emails=cc_list,
-            bcc_emails=bcc_list,
-            subject=subject,
-            body=body,
-            smtp_host=smtp_host,
-            smtp_port=smtp_port,
-            use_ssl="true" if use_ssl else "false",
-            status="pending",
-            attachment_count=len(attachments),
-            total_attachment_size=total_size
-        )
-        db.add(email_log)
-        db.commit()
-        db.refresh(email_log)
+        try:
+            email_log = EmailLog(
+                sender_email=sender_email,
+                recipient_emails=recipient_list,
+                cc_emails=cc_list,
+                bcc_emails=bcc_list,
+                subject=subject,
+                body=body,
+                smtp_host=smtp_host,
+                smtp_port=smtp_port,
+                use_ssl="true" if use_ssl_bool else "false",
+                status="pending",
+                attachment_count=len(attachments),
+                total_attachment_size=total_size
+            )
+            db.add(email_log)
+            db.commit()
+            db.refresh(email_log)
+            logger.info(f"Email log created with ID: {email_log.id}")
+        except Exception as e:
+            logger.error(f"Failed to create email log: {str(e)}")
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"로그 저장 실패: {str(e)}"
+            )
         
         # Send email
         success, error_message = await EmailService.send_email(
@@ -248,13 +287,13 @@ async def send_email(
             smtp_port=smtp_port,
             smtp_username=smtp_username,
             smtp_password=smtp_password,
-            use_ssl=use_ssl,
+            use_ssl=use_ssl_bool,
             subject=subject,
             body=body,
             cc_emails=cc_list,
             bcc_emails=bcc_list,
             attachments=attachments if attachments else None,
-            verify_ssl=verify_ssl
+            verify_ssl=verify_ssl_bool
         )
         
         # Update log
@@ -297,8 +336,16 @@ async def get_email_logs(
     """
     이메일 발송 로그 조회
     """
-    logs = db.query(EmailLog).order_by(EmailLog.created_at.desc()).offset(skip).limit(limit).all()
-    return logs
+    try:
+        logs = db.query(EmailLog).order_by(EmailLog.created_at.desc()).offset(skip).limit(limit).all()
+        logger.info(f"Retrieved {len(logs)} email logs from database")
+        return logs
+    except Exception as e:
+        logger.error(f"Error retrieving email logs: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="로그 조회 중 오류가 발생했습니다."
+        )
 
 
 @app.get("/api/v1/email/logs/{log_id}", response_model=EmailLogResponse)
@@ -417,7 +464,7 @@ if FRONTEND_DIST_DIR.exists() and (FRONTEND_DIST_DIR / "index.html").exists():
 
 if __name__ == "__main__":
     import uvicorn
-    # Phase별 host 사용 (local은 0.0.0.0, alpha는 설정된 host)
-    host = "0.0.0.0" if settings.env_name == "local" else settings.host
+    # 컨테이너에서는 항상 0.0.0.0 사용 (도메인은 ALB에서 처리)
+    host = "0.0.0.0"
     uvicorn.run(app, host=host, port=settings.api_port)
 

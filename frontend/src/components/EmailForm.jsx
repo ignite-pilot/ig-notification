@@ -125,8 +125,8 @@ function EmailForm() {
       formDataToSend.append('smtp_port', formData.smtpPort)
       formDataToSend.append('smtp_username', formData.smtpUsername)
       formDataToSend.append('smtp_password', formData.smtpPassword)
-      formDataToSend.append('use_ssl', formData.useSsl)
-      formDataToSend.append('verify_ssl', formData.verifySsl)
+      formDataToSend.append('use_ssl', formData.useSsl.toString())
+      formDataToSend.append('verify_ssl', formData.verifySsl.toString())
       if (cc.length > 0) {
         formDataToSend.append('cc_emails', JSON.stringify(cc))
       }
@@ -142,7 +142,8 @@ function EmailForm() {
 
       const response = await axios.post('/api/v1/email/send', formDataToSend, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'multipart/form-data',
+          'X-API-Key': process.env.VITE_API_KEY || '' // API 키가 설정된 경우 사용
         }
       })
 

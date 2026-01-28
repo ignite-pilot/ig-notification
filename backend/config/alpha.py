@@ -31,7 +31,10 @@ def load_cors_origins(phase: str) -> list:
 def load_database_url_from_aws() -> str:
     """AWS Secret Manager에서 데이터베이스 정보를 가져와서 DATABASE_URL 구성"""
     try:
-        secrets_client = boto3.client('secretsmanager', region_name='ap-northeast-2')
+        # AWS 자격 증명은 환경 변수에서 가져오거나 IAM 역할 사용
+        # ECS Task Definition의 secrets로 주입된 환경 변수 사용
+        region = os.getenv('AWS_DEFAULT_REGION', 'ap-northeast-2')
+        secrets_client = boto3.client('secretsmanager', region_name=region)
         response = secrets_client.get_secret_value(SecretId='prod/ignite-pilot/postgresInfo2')
         secret = json.loads(response['SecretString'])
         
@@ -39,7 +42,8 @@ def load_database_url_from_aws() -> str:
         db_port = secret.get('DB_PORT', '5432')
         db_user = secret.get('DB_USER', 'postgres')
         db_password = secret.get('DB_PASSWORD', '')
-        db_name = secret.get('DB_NAME', 'ig-notification')  # 프로젝트 이름으로 기본값 설정
+        # 프로젝트 이름으로 강제 설정 (Secret Manager의 DB_NAME 무시)
+        db_name = 'ig-notification'
         
         # PostgreSQL 연결 문자열 구성
         database_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
@@ -56,7 +60,7 @@ class AlphaConfig:
     """Alpha 프로덕션 환경 설정"""
     
     # Server Host
-    HOST: str = "alpha.ig-notification.ig-pilot.com"
+    HOST: str = os.getenv("HOST", "ig-notification.ignite-pilot.com")
     
     # Server Ports
     API_PORT: int = int(os.getenv("API_PORT", "8101"))

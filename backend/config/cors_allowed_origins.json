@@ -1,11 +1,17 @@
 {
   "local": [
     "http://localhost:8100",
-    "http://127.0.0.1:8100"
+    "http://127.0.0.1:8100",
+    "http://localhost:8200",
+    "http://127.0.0.1:8200",
+    "http://localhost:8301",
+    "http://127.0.0.1:8301"
   ],
   "alpha": [
     "https://alpha.ig-notification.ig-pilot.com",
-    "http://alpha.ig-notification.ig-pilot.com"
+    "http://alpha.ig-notification.ig-pilot.com",
+    "https://ig-notification.ignite-pilot.com",
+    "http://ig-notification.ignite-pilot.com"
   ]
 }
 
