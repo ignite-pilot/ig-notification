@@ -23,10 +23,6 @@
           "value": "alpha"
         },
         {
-          "name": "API_PORT",
-          "value": "8101"
-        },
-        {
           "name": "AWS_DEFAULT_REGION",
           "value": "ap-northeast-2"
         },

@@ -53,21 +53,17 @@ ENV PYTHONUNBUFFERED=1 \
 # Expose HTTP port
 EXPOSE 8101
 
-# Entrypoint 스크립트에 실행 권한 부여
-RUN chmod +x /app/backend/entrypoint.sh
-
 # Health check for ECS/ALB
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://127.0.0.1:8101/api/health || exit 1
 
 # Run as non-root user for security
-# Note: Port 80 requires root, so we'll use root for now
-# Alternative: Use port 8080 and update ECS Task Definition
+# Port 8101 doesn't require root, so we can use non-root user
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
-# USER appuser  # Commented out to allow binding to port 80
+USER appuser
 
 # Run the application
 WORKDIR /app/backend
-# Entrypoint 스크립트를 사용하여 환경 변수에서 포트 읽기
-ENTRYPOINT ["/app/backend/entrypoint.sh"]
+# uvicorn을 직접 실행 (포트 8101 고정)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8101"]

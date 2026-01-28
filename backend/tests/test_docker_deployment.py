@@ -67,22 +67,20 @@ def test_pythonpath_setup():
         return True
 
 
-def test_entrypoint_script_exists():
-    """entrypoint.sh 스크립트가 존재하는지 확인"""
-    entrypoint_path = backend_dir / "entrypoint.sh"
-    if entrypoint_path.exists():
-        print("✅ entrypoint.sh 파일 존재 확인")
-        # 실행 권한 확인 (Unix 시스템에서만)
-        if os.name != 'nt':  # Windows가 아닌 경우
-            import stat
-            is_executable = os.stat(entrypoint_path).st_mode & stat.S_IEXEC
-            if is_executable:
-                print("✅ entrypoint.sh 실행 권한 확인")
+def test_dockerfile_cmd():
+    """Dockerfile의 CMD가 올바르게 설정되어 있는지 확인"""
+    dockerfile_path = backend_dir.parent / "Dockerfile"
+    if dockerfile_path.exists():
+        with open(dockerfile_path, 'r') as f:
+            content = f.read()
+            if 'CMD ["uvicorn", "main:app"' in content or 'CMD ["python", "main.py"]' in content:
+                print("✅ Dockerfile CMD 설정 확인")
+                return True
             else:
-                print("⚠️  entrypoint.sh 실행 권한 없음 (Dockerfile에서 chmod로 설정됨)")
-        return True
+                print("⚠️  Dockerfile에 CMD가 없거나 예상과 다름")
+                return False
     else:
-        print("❌ entrypoint.sh 파일 없음")
+        print("⚠️  Dockerfile을 찾을 수 없음")
         return False
 
 
@@ -101,7 +99,7 @@ def test_all():
     results.append(("main 모듈 import", test_main_module_import()))
     results.append(("settings 모듈 import", test_settings_import()))
     results.append(("PYTHONPATH 설정", test_pythonpath_setup()))
-    results.append(("entrypoint.sh 존재", test_entrypoint_script_exists()))
+    results.append(("Dockerfile CMD 설정", test_dockerfile_cmd()))
     
     print("=" * 50)
     print("테스트 결과 요약")
