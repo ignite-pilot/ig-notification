@@ -34,14 +34,11 @@ COPY backend/requirements.txt ./backend/
 # Install Python dependencies
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Copy backend source code
+# Copy backend source code (config 디렉토리 포함)
 COPY backend/ ./backend/
 
 # Copy frontend build from previous stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-
-# Copy config files
-COPY config/ ./config/
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
