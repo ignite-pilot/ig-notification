@@ -13,7 +13,7 @@
       "essential": true,
       "portMappings": [
         {
-          "containerPort": 80,
+          "containerPort": 8101,
           "protocol": "tcp"
         }
       ],
@@ -24,7 +24,7 @@
         },
         {
           "name": "API_PORT",
-          "value": "80"
+          "value": "8101"
         },
         {
           "name": "AWS_DEFAULT_REGION",
@@ -46,7 +46,7 @@
       "healthCheck": {
         "command": [
           "CMD-SHELL",
-          "curl -f http://127.0.0.1:80/api/health || exit 1"
+          "curl -f http://127.0.0.1:8101/api/health || exit 1"
         ],
         "interval": 30,
         "timeout": 5,

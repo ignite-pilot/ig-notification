@@ -4,8 +4,8 @@
 
 set -e
 
-# 환경 변수에서 포트 읽기 (기본값: 80)
-PORT=${API_PORT:-80}
+# 환경 변수에서 포트 읽기 (기본값: 8101)
+PORT=${API_PORT:-8101}
 
 # uvicorn 실행
 exec uvicorn main:app --host 0.0.0.0 --port "$PORT"

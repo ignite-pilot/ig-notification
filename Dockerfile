@@ -50,15 +50,15 @@ ENV PYTHONUNBUFFERED=1 \
     PHASE=alpha \
     AWS_DEFAULT_REGION=ap-northeast-2
 
-# Expose HTTP port (ALB가 HTTPS 처리)
-EXPOSE 80
+# Expose HTTP port
+EXPOSE 8101
 
 # Entrypoint 스크립트에 실행 권한 부여
 RUN chmod +x /app/backend/entrypoint.sh
 
 # Health check for ECS/ALB
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://127.0.0.1:80/api/health || exit 1
+    CMD curl -f http://127.0.0.1:8101/api/health || exit 1
 
 # Run as non-root user for security
 # Note: Port 80 requires root, so we'll use root for now
