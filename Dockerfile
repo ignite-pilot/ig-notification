@@ -1,4 +1,6 @@
-# Multi-stage build for IG Notification System
+# Dockerfile for IG Notification System
+# AWS ECS 배포용 Multi-stage build
+
 # Stage 1: Frontend build
 FROM node:20-alpine AS frontend-builder
 
@@ -7,17 +9,17 @@ WORKDIR /app/frontend
 # Copy frontend package files
 COPY frontend/package*.json ./
 
-# Install frontend dependencies
+# Install frontend dependencies (빌드에 devDependencies 필요)
 RUN npm ci
 
 # Copy frontend source files
 COPY frontend/ ./
 
-# Build frontend
+# Build frontend for production
 RUN npm run build
 
 # Stage 2: Backend runtime
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
@@ -27,6 +29,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend requirements
@@ -42,18 +45,29 @@ COPY backend/ ./backend/
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app/backend
-ENV PHASE=${PHASE:-local}
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/backend \
+    PHASE=alpha \
+    AWS_DEFAULT_REGION=ap-northeast-2
 
-# Expose port
-EXPOSE 8101
+# Expose HTTP port (ALB가 HTTPS 처리)
+EXPOSE 80
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8101/api/health')"
+# Entrypoint 스크립트에 실행 권한 부여
+RUN chmod +x /app/backend/entrypoint.sh
+
+# Health check for ECS/ALB
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://127.0.0.1:80/api/health || exit 1
+
+# Run as non-root user for security
+# Note: Port 80 requires root, so we'll use root for now
+# Alternative: Use port 8080 and update ECS Task Definition
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+# USER appuser  # Commented out to allow binding to port 80
 
 # Run the application
 WORKDIR /app/backend
-CMD ["python", "main.py"]
-
+# Entrypoint 스크립트를 사용하여 환경 변수에서 포트 읽기
+ENTRYPOINT ["/app/backend/entrypoint.sh"]

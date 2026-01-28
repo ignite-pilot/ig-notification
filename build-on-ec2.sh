@@ -75,7 +75,7 @@ fi
 
 echo ""
 echo "=== Docker 이미지 빌드 (x86_64) ==="
-docker build -f Dockerfile.aws -t ${ECR_REPOSITORY}:${IMAGE_TAG} .
+docker build -t ${ECR_REPOSITORY}:${IMAGE_TAG} .
 
 echo ""
 echo "=== ECR 로그인 ==="

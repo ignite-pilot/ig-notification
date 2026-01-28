@@ -25,7 +25,7 @@ aws ssm send-command \
     'if [ ! -d ig-notification ]; then git clone https://github.com/ignite-pilot/ig-notification.git; fi',
     'cd ig-notification',
     'git pull || true',
-    'docker build -f Dockerfile.aws -t ig-notification:${IMAGE_TAG} .',
+    'docker build -t ig-notification:${IMAGE_TAG} .',
     'aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}',
     'docker tag ig-notification:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}',
     'docker push ${ECR_URI}:${IMAGE_TAG}',

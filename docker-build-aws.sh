@@ -19,7 +19,7 @@ fi
 ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
 
 echo "Building Docker image..."
-docker build -f Dockerfile.aws -t ${ECR_REPOSITORY}:${IMAGE_TAG} .
+docker build -t ${ECR_REPOSITORY}:${IMAGE_TAG} .
 
 echo "Tagging image for ECR..."
 docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
