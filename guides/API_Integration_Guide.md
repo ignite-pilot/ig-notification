@@ -20,8 +20,8 @@
   - `sender_email` (string, 필수)
   - `smtp_host` (string, 필수)
   - `smtp_port` (int, 필수)
-  - `smtp_username` (string, 선택)
-  - `smtp_password` (string, 선택)
+  - `smtp_username` (string, 선택) - **⚠️ 대부분의 SMTP 서버는 인증 필수**
+  - `smtp_password` (string, 선택) - **⚠️ smtp_username과 함께 제공 필요**
   - `use_ssl` (bool, 기본 true)
   - `verify_ssl` (bool, 기본 true) – self-signed 허용 시 false
   - `cc_emails` (string, 선택): JSON 문자열 배열
@@ -79,6 +79,7 @@ curl -X POST "http://localhost:8101/api/v1/email/send" \
 
 ## LLM을 위한 체크리스트
 - `recipient_emails`는 JSON 문자열 배열로 직렬화 후 전송
+- **SMTP 인증**: 대부분의 SMTP 서버(Gmail, Outlook 등)는 `smtp_username`과 `smtp_password`가 필수입니다. 둘 중 하나라도 누락되면 발송 실패합니다.
 - 첨부파일 크기/개수/확장자 사전 검증
 - 반복 호출 시 중복 발송 주의 (idempotency 없음)
 - Alpha 환경에서는 `X-API-Key` 포함 여부를 사전 확인

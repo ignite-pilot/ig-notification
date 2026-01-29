@@ -29,7 +29,13 @@
 
 **선택 파라미터**:
 - `smtp_username` (string, optional): SMTP 사용자명
+  - **주의**: 대부분의 SMTP 서버(Gmail, Outlook, 기업 메일 서버 등)는 인증이 필수입니다.
+  - 인증이 필요한 SMTP 서버의 경우 `smtp_username`과 `smtp_password`를 모두 제공해야 합니다.
+  - 둘 중 하나라도 누락되면 이메일 발송이 실패합니다.
+  - 로컬 SMTP 서버나 인증이 필요 없는 특수한 경우에만 생략 가능합니다.
 - `smtp_password` (string, optional): SMTP 비밀번호
+  - **주의**: `smtp_username`과 함께 제공되어야 합니다.
+  - Gmail의 경우 앱 비밀번호(App Password)를 사용해야 합니다.
 - `use_ssl` (boolean, default: true): SSL 사용 여부
 - `verify_ssl` (boolean, default: true): SSL 인증서 검증 여부
 - `cc_emails` (string, JSON 형식, optional): 참조 이메일 배열 (JSON string)

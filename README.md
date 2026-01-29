@@ -73,7 +73,10 @@ curl "https://ig-notification.ig-pilot.com/api/health"
 
 **선택 파라미터**:
 - `smtp_username` (string): SMTP 사용자명
+  - **⚠️ 중요**: 대부분의 SMTP 서버(Gmail, Outlook 등)는 인증이 필수입니다.
+  - 인증이 필요한 경우 `smtp_username`과 `smtp_password`를 모두 제공해야 합니다.
 - `smtp_password` (string): SMTP 비밀번호
+  - Gmail의 경우 일반 비밀번호가 아닌 **앱 비밀번호(App Password)**를 사용해야 합니다.
 - `use_ssl` (boolean, default: true): SSL 사용 여부
 - `verify_ssl` (boolean, default: true): SSL 인증서 검증 여부
 - `cc_emails` (string, JSON 형식): 참조 이메일 배열
