@@ -72,9 +72,9 @@ class LocalConfig:
     if "http://127.0.0.1:8101" not in ALLOWED_ORIGINS:
         ALLOWED_ORIGINS.append("http://127.0.0.1:8101")
     
-    # Database - AWS Secret Manager에서만 가져오기 (보안: 파일에 저장하지 않음)
-    # 환경 변수 DATABASE_URL은 사용하지 않음 (보안상 파일에 저장하지 않음)
-    DATABASE_URL: str = load_database_url_from_aws()
+    # Database - 환경 변수 우선, 없으면 AWS Secret Manager에서 가져오기
+    # 로컬 개발 환경에서는 환경 변수로 직접 설정 가능
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "") or load_database_url_from_aws()
     
     # API Security
     API_KEY: Optional[str] = os.getenv("API_KEY", None)
