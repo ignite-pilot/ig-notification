@@ -29,24 +29,24 @@ def load_cors_origins(phase: str) -> list:
 
 
 def load_database_url_from_aws() -> str:
-    """AWS Secret Manager에서 데이터베이스 정보를 가져와서 DATABASE_URL 구성"""
+    """AWS Secret Manager에서 MySQL 데이터베이스 정보를 가져와서 DATABASE_URL 구성"""
     try:
         # AWS 자격 증명은 환경 변수에서 가져오거나 IAM 역할 사용
         # ECS Task Definition의 secrets로 주입된 환경 변수 사용
         region = os.getenv('AWS_DEFAULT_REGION', 'ap-northeast-2')
         secrets_client = boto3.client('secretsmanager', region_name=region)
-        response = secrets_client.get_secret_value(SecretId='prod/ignite-pilot/postgresInfo2')
+        response = secrets_client.get_secret_value(SecretId='prod/ignite-pilot/mysql-realpilot')
         secret = json.loads(response['SecretString'])
         
         db_host = secret.get('DB_HOST', '')
-        db_port = secret.get('DB_PORT', '5432')
-        db_user = secret.get('DB_USER', 'postgres')
+        db_port = secret.get('DB_PORT', '3306')  # MySQL 기본 포트
+        db_user = secret.get('DB_USER', 'root')
         db_password = secret.get('DB_PASSWORD', '')
         # 프로젝트 이름으로 강제 설정 (Secret Manager의 DB_NAME 무시)
         db_name = 'ig-notification'
         
-        # PostgreSQL 연결 문자열 구성
-        database_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        # MySQL 연결 문자열 구성
+        database_url = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
         return database_url
     except ClientError as e:
         print(f"Warning: Failed to load database config from AWS Secret Manager: {e}")

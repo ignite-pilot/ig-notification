@@ -350,7 +350,7 @@ async def get_email_logs(
 
 @app.get("/api/v1/email/logs/{log_id}", response_model=EmailLogResponse)
 async def get_email_log(
-    log_id: uuid.UUID,
+    log_id: str,  # MySQL에서는 UUID를 문자열로 저장하므로 str로 변경
     db: Session = Depends(get_db)
 ):
     """

@@ -162,7 +162,7 @@ class MCPServer:
             
             db = SessionLocal()
             try:
-                log = db.query(EmailLog).filter(EmailLog.id == uuid.UUID(log_id)).first()
+                log = db.query(EmailLog).filter(EmailLog.id == log_id).first()  # MySQL: UUID는 문자열로 저장
                 if not log:
                     return {
                         "error": {

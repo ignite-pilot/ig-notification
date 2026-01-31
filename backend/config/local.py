@@ -29,20 +29,20 @@ def load_cors_origins(phase: str) -> list:
 
 
 def load_database_url_from_aws() -> str:
-    """AWS Secret Manager에서 데이터베이스 정보를 가져와서 DATABASE_URL 구성"""
+    """AWS Secret Manager에서 MySQL 데이터베이스 정보를 가져와서 DATABASE_URL 구성"""
     try:
         secrets_client = boto3.client('secretsmanager', region_name='ap-northeast-2')
-        response = secrets_client.get_secret_value(SecretId='prod/ignite-pilot/postgresInfo2')
+        response = secrets_client.get_secret_value(SecretId='prod/ignite-pilot/mysql-realpilot')
         secret = json.loads(response['SecretString'])
         
         db_host = secret.get('DB_HOST', '')
-        db_port = secret.get('DB_PORT', '5432')
-        db_user = secret.get('DB_USER', 'postgres')
+        db_port = secret.get('DB_PORT', '3306')  # MySQL 기본 포트
+        db_user = secret.get('DB_USER', 'root')
         db_password = secret.get('DB_PASSWORD', '')
         db_name = secret.get('DB_NAME', 'ig-notification')  # 프로젝트 이름으로 기본값 설정
         
-        # PostgreSQL 연결 문자열 구성
-        database_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        # MySQL 연결 문자열 구성
+        database_url = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
         return database_url
     except ClientError as e:
         print(f"Warning: Failed to load database config from AWS Secret Manager: {e}")

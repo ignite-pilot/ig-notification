@@ -1,12 +1,12 @@
 -- Create database if not exists
 -- Note: This should be run manually or through a migration tool
--- CREATE DATABASE "ig-notification";
+-- CREATE DATABASE `ig-notification`;
 
 -- The tables will be created automatically by SQLAlchemy
--- But here's the schema for reference:
+-- But here's the schema for reference (MySQL compatible):
 
 CREATE TABLE IF NOT EXISTS email_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id CHAR(36) PRIMARY KEY,
     sender_email VARCHAR(255) NOT NULL,
     recipient_emails JSON NOT NULL,
     cc_emails JSON,
@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS email_logs (
     error_message TEXT,
     attachment_count INTEGER DEFAULT 0,
     total_attachment_size BIGINT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    sent_at TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    sent_at DATETIME
 );
 
 CREATE INDEX IF NOT EXISTS idx_email_logs_created_at ON email_logs(created_at DESC);

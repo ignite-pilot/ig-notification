@@ -8,7 +8,7 @@
         "secretsmanager:DescribeSecret"
       ],
       "Resource": [
-        "arn:aws:secretsmanager:ap-northeast-2:575084400422:secret:prod/ignite-pilot/postgresInfo2*"
+        "arn:aws:secretsmanager:ap-northeast-2:575084400422:secret:prod/ignite-pilot/mysql-realpilot*"
       ]
     }
   ]
