@@ -126,7 +126,7 @@ npm run dev  # alpha.ig-notification.ig-pilot.com:8100
 
 ```bash
 PHASE=local
-DATABASE_URL=postgresql://user:password@host:port/database_name
+DATABASE_URL=mysql+pymysql://user:password@host:port/database_name?charset=utf8mb4
 API_PORT=8101
 MCP_PORT=8102
 FRONTEND_PORT=8100
@@ -138,7 +138,7 @@ LOG_LEVEL=DEBUG
 
 ```bash
 PHASE=alpha
-DATABASE_URL=postgresql://user:password@host:port/database_name
+DATABASE_URL=mysql+pymysql://user:password@host:port/database_name?charset=utf8mb4
 API_PORT=8101
 MCP_PORT=8102
 FRONTEND_PORT=8100

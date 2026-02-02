@@ -5,7 +5,7 @@
 ### ✅ 1. 프로젝트 구조
 - Backend (Python/FastAPI)
 - Frontend (React + Vite + Tailwind CSS)
-- Database (PostgreSQL)
+- Database (MySQL)
 - MCP Server
 - 테스트 코드
 
@@ -119,7 +119,7 @@ npm test
 데이터베이스는 자동으로 초기화됩니다. `backend/database.py`의 `init_db()` 함수가 테이블을 생성합니다.
 
 환경 변수는 `backend/.env` 파일에 설정되어 있습니다:
-- DATABASE_URL: PostgreSQL 연결 정보
+- DATABASE_URL: MySQL 연결 정보
 - API_PORT: API 서버 포트 (기본값: 8000)
 - MCP_PORT: MCP 서버 포트 (기본값: 8001)
 
@@ -164,5 +164,5 @@ ig-notification/
 - 모든 코드는 Simple하고 깔끔한 디자인으로 구현되었습니다
 - Sequential Thinking을 사용하여 체계적으로 개발되었습니다
 - GitHub 저장소는 private로 생성되었습니다
-- 데이터베이스는 PostgreSQL을 사용합니다
+- 데이터베이스는 MySQL을 사용합니다
 

@@ -125,7 +125,7 @@ curl "https://ig-notification.ig-pilot.com/api/health"
 
 - Python 3.12+
 - Node.js 20+
-- PostgreSQL
+- MySQL
 
 ### 로컬 개발 환경 실행
 

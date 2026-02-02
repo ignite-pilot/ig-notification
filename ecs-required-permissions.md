@@ -38,7 +38,7 @@ Task Definition에서 사용하는 `ecsTaskRole`에 다음 권한이 필요합�
         "secretsmanager:DescribeSecret"
       ],
       "Resource": [
-        "arn:aws:secretsmanager:ap-northeast-2:575084400422:secret:prod/ignite-pilot/postgresInfo2*"
+        "arn:aws:secretsmanager:ap-northeast-2:575084400422:secret:prod/ignite-pilot/mysql-realpilot*"
       ]
     }
   ]
@@ -118,7 +118,7 @@ Task Definition에서 사용하는 `ecsTaskExecutionRole`에 다음 권한이 �
 - `ecsTaskRole`: 존재해야 함 (Secrets Manager 접근)
 
 ### Secrets Manager Secret 확인
-- `prod/ignite-pilot/postgresInfo2`: 존재해야 함
+- `prod/ignite-pilot/mysql-realpilot`: 존재해야 함
 
 ### CloudWatch Logs 그룹
 - `/ecs/ig-notification`: 없으면 자동 생성됨 (ecsTaskExecutionRole에 권한이 있으면)

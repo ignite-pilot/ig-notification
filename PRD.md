@@ -45,13 +45,13 @@
 	- Personal Access Key : AWS Secret Manager "prod/ignite-pilot/github"에서 참고
 - Database 
 	- Local
-		- 사용 DB : postgres
-		- DB 정보 : AWS Secret Manager "prod/ignite-pilot/postgresInfo2"에서 참고
+		- 사용 DB : MySQL
+		- DB 정보 : AWS Secret Manager "prod/ignite-pilot/mysql-realpilot"에서 참고
 		- DB name : ig-notification
 	- Alpha
-		- 사용 DB : postgres
-		- DB 정보 : AWS Secret Manager "prod/ignite-pilot/postgresInfo2"에서 참고
-		- DB name : ig-notification-alpha
+		- 사용 DB : MySQL
+		- DB 정보 : AWS Secret Manager "prod/ignite-pilot/mysql-realpilot"에서 참고
+		- DB name : ig-notification
 
 - 서비스 URL
 	- Local

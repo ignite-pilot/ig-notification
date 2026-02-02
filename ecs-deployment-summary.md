@@ -85,7 +85,7 @@ aws ecs describe-tasks --cluster aws-deploy-wizard --tasks <task-arn> --region a
 
 ### 4. Secrets Manager 권한 확인
 - `ecsTaskRole`에 `SecretsManagerReadOnly` 또는 `SecretsManagerReadWrite` 권한이 있는지 확인
-- Secret: `prod/ignite-pilot/postgresInfo2`
+- Secret: `prod/ignite-pilot/mysql-realpilot`
 
 ## 접근 방법
 

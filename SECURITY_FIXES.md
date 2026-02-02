@@ -46,7 +46,7 @@
 
 ```bash
 # 필수
-DATABASE_URL=postgresql://user:password@host:port/database_name
+DATABASE_URL=mysql+pymysql://user:password@host:port/database_name?charset=utf8mb4
 API_PORT=8101
 MCP_PORT=8102
 
