@@ -11,7 +11,12 @@
     "https://alpha.ig-notification.ig-pilot.com",
     "http://alpha.ig-notification.ig-pilot.com",
     "https://ig-notification.ignite-pilot.com",
-    "http://ig-notification.ignite-pilot.com"
+    "http://ig-notification.ignite-pilot.com",
+    "https://ig-member.ig-pilot.com"
+  ],
+  "real": [
+    "https://ig-notification.ig-pilot.com",
+    "http://ig-notification.ig-pilot.com",
+    "https://ig-member.ig-pilot.com"
   ]
 }
-
