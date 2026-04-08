@@ -16,9 +16,10 @@ import logging
 import hmac
 from pathlib import Path
 
-from database import get_db, init_db, EmailLog, engine
-from models import EmailSendResponse, EmailLogResponse
+from database import get_db, init_db, EmailLog, PushLog, engine
+from models import EmailSendResponse, EmailLogResponse, PushSendResponse, PushLogResponse
 from email_service import EmailService
+from push_service import PushService
 from settings import settings
 
 # 로깅 레벨을 환경 변수에서 읽기
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Database initialization failed: {str(e)}. Server will continue without database.")
         logger.exception(e)
+
     yield
     # Shutdown (필요한 경우 정리 작업)
 
@@ -357,6 +359,160 @@ async def get_email_log(
     특정 이메일 발송 로그 상세 조회
     """
     log = db.query(EmailLog).filter(EmailLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="로그를 찾을 수 없습니다.")
+    return log
+
+
+@app.post("/api/v1/push/send", response_model=PushSendResponse, dependencies=[Depends(verify_api_key)])
+@limiter.limit("10/minute")
+async def send_push(
+    request: Request,
+    firebase_project_id: str = Form(...),  # Firebase 프로젝트 ID
+    device_tokens: str = Form(...),  # JSON 배열 문자열
+    title: str = Form(...),
+    body: str = Form(...),
+    data: Optional[str] = Form(None),  # JSON 객체 문자열
+    db: Session = Depends(get_db)
+):
+    """
+    FCM 푸시 알림 발송 API
+    device_tokens: JSON 배열 문자열 (예: ["token1", "token2"])
+    data: JSON 객체 문자열 (선택, 예: {"key": "value"})
+    """
+    import json
+
+    try:
+        # device_tokens JSON 파싱
+        try:
+            token_list = json.loads(device_tokens)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="device_tokens가 유효한 JSON 배열이 아닙니다.")
+
+        if not isinstance(token_list, list):
+            raise HTTPException(status_code=400, detail="device_tokens는 JSON 배열이어야 합니다.")
+
+        # 토큰 수 검증
+        if len(token_list) == 0:
+            raise HTTPException(status_code=400, detail="device_tokens를 최소 1개 이상 입력해주세요.")
+        if len(token_list) > 500:
+            raise HTTPException(status_code=400, detail="device_tokens는 최대 500개까지 허용됩니다.")
+
+        # data JSON 파싱 (선택)
+        data_dict = None
+        if data:
+            try:
+                data_dict = json.loads(data)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="data가 유효한 JSON 객체가 아닙니다.")
+            if not isinstance(data_dict, dict):
+                raise HTTPException(status_code=400, detail="data는 JSON 객체여야 합니다.")
+
+        # PushLog DB 기록 (pending 상태로 저장)
+        try:
+            push_log = PushLog(
+                firebase_project_id=firebase_project_id,
+                title=title,
+                body=body,
+                data=data_dict,
+                device_tokens=token_list,
+                status="pending"
+            )
+            db.add(push_log)
+            db.commit()
+            db.refresh(push_log)
+            logger.info(f"Push log created with ID: {push_log.id}")
+        except Exception as e:
+            logger.error(f"Failed to create push log: {str(e)}")
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"로그 저장 실패: {str(e)}")
+
+        # 푸시 발송
+        try:
+            success_count, failure_count, failed_tokens = PushService.send_push(
+                firebase_project_id=firebase_project_id,
+                device_tokens=token_list,
+                title=title,
+                body=body,
+                data=data_dict
+            )
+            # 상태 결정
+            if failure_count == 0:
+                push_log.status = "success"
+            elif success_count == 0:
+                push_log.status = "failed"
+            else:
+                push_log.status = "partial"
+
+            push_log.success_count = success_count
+            push_log.failure_count = failure_count
+            push_log.failed_tokens = failed_tokens if failed_tokens else None
+            push_log.sent_at = datetime.utcnow()
+        except RuntimeError as e:
+            # Firebase 미초기화 등 런타임 에러
+            error_msg = str(e)
+            logger.error(f"Push 발송 실패 (RuntimeError): {error_msg}")
+            push_log.status = "failed"
+            push_log.error_message = error_msg
+            success_count = 0
+            failure_count = len(token_list)
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Push 발송 실패: {error_msg}")
+            push_log.status = "failed"
+            push_log.error_message = error_msg
+            success_count = 0
+            failure_count = len(token_list)
+
+        db.commit()
+
+        return PushSendResponse(
+            logId=push_log.id,
+            status=push_log.status,
+            message=(
+                f"푸시 알림이 성공적으로 발송되었습니다. (성공: {success_count}, 실패: {failure_count})"
+                if push_log.status != "failed"
+                else f"푸시 알림 발송 실패: {push_log.error_message}"
+            ),
+            successCount=success_count,
+            failureCount=failure_count,
+            createdAt=push_log.created_at
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"푸시 발송 중 오류: {str(e)}")
+        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다. 관리자에게 문의하세요.")
+
+
+@app.get("/api/v1/push/logs", response_model=List[PushLogResponse])
+async def get_push_logs(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    푸시 발송 로그 목록 조회
+    """
+    try:
+        logs = db.query(PushLog).order_by(PushLog.created_at.desc()).offset(skip).limit(limit).all()
+        logger.info(f"Retrieved {len(logs)} push logs from database")
+        return logs
+    except Exception as e:
+        logger.error(f"Error retrieving push logs: {str(e)}")
+        raise HTTPException(status_code=500, detail="로그 조회 중 오류가 발생했습니다.")
+
+
+@app.get("/api/v1/push/logs/{log_id}", response_model=PushLogResponse)
+async def get_push_log(
+    log_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    푸시 발송 로그 상세 조회
+    """
+    log = db.query(PushLog).filter(PushLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="로그를 찾을 수 없습니다.")
     return log

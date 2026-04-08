@@ -28,6 +28,22 @@ def load_cors_origins(phase: str) -> list:
         return [] if phase == "alpha" else ["http://localhost:8100"]
 
 
+def load_firebase_service_account_from_aws() -> dict:
+    """AWS Secret Manager에서 Firebase 서비스 계정 JSON을 가져오기"""
+    try:
+        region = os.getenv('AWS_DEFAULT_REGION', 'ap-northeast-2')
+        secrets_client = boto3.client('secretsmanager', region_name=region)
+        response = secrets_client.get_secret_value(SecretId='prod/ignite-pilot/reborn-android-key')
+        secret_string = response['SecretString']
+        return json.loads(secret_string)
+    except ClientError as e:
+        print(f"Warning: Failed to load Firebase config from AWS Secret Manager: {e}")
+        return {}
+    except Exception as e:
+        print(f"Warning: Failed to load Firebase config: {e}")
+        return {}
+
+
 def load_database_url_from_aws() -> str:
     """AWS Secret Manager에서 MySQL 데이터베이스 정보를 가져와서 DATABASE_URL 구성"""
     try:

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from uuid import UUID
 
@@ -52,6 +52,33 @@ class EmailLogResponse(BaseModel):
     total_attachment_size: int
     created_at: datetime
     sent_at: Optional[datetime]
-    
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PushSendResponse(BaseModel):
+    logId: UUID
+    status: str
+    message: str
+    successCount: int
+    failureCount: int
+    createdAt: datetime
+
+
+class PushLogResponse(BaseModel):
+    id: UUID
+    firebase_project_id: str
+    title: str
+    body: str
+    data: Optional[Dict[str, Any]]
+    device_tokens: List[str]
+    success_count: int
+    failure_count: int
+    failed_tokens: Optional[List[str]]
+    status: str
+    error_message: Optional[str]
+    created_at: datetime
+    sent_at: Optional[datetime]
+
     model_config = ConfigDict(from_attributes=True)
 
